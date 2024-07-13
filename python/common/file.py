@@ -23,10 +23,6 @@ def get_file_list_recursively(root_dir, ignore_dir_list) -> list[str]:
                 else:
                     file_list.append(entry_path)
 
-    #for file in file_list:
-    #    print(file)
-    #print(len(file_list))
-
     return file_list
 
 def get_plaintext_from_filepath(filepath: str) -> str:
@@ -56,9 +52,9 @@ def get_plaintext_from_filepath(filepath: str) -> str:
                         try:
                             text = raw_data.decode('cp1252')  # 'cp1252'로 시도
                         except Exception as e:
-                            print(f"get_plaintext_from_filepath error: {filepath} - {e}")
+                            print(f"[ERROR] get_plaintext_from_filepath error: {filepath} - {e}")
                             traceback.print_exc()
         
-        print(f"(len:{len(text)}) / {encoding}  / {filepath}")
+        print(f"[TRACE] len:{len(text)} / encoding:{encoding} / filepath:{filepath}")
         
     return text

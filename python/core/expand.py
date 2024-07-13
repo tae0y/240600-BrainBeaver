@@ -11,7 +11,7 @@ from common.constants import Constants
 import traceback
 from typing import Tuple
 from concurrent.futures import ThreadPoolExecutor
-from common.threadpool import get_global_thread_pool
+from common.pooling import get_global_thread_pool, get_global_process_pool
 
 constants = Constants.get_instance()
 
@@ -35,15 +35,14 @@ def expand_all_concept_with_websearch(action_type:str="all", limit:int=10) -> Tu
             try:
                 return expand_one_concept_with_websearch(concept)
             except Exception as e:
-                print(f"Error during response parsing for expand_one_concept_with_websearch: {e}")
+                print(f"[ERROR] during response parsing for expand_one_concept_with_websearch: {e}")
                 traceback.print_exc()
                 fail_count += 1
                 return None  # 실패한 경우 None 반환
 
-        # 병렬 처리
-        executor = get_global_thread_pool()
-        #with get_global_thread_pool() as executor:
-        results = list(executor.map(expand_and_handle_exceptions, concpets_list))
+        # Ollama는 멀티 프로세싱으로 처리
+        pool = get_global_process_pool()
+        results = pool.map(expand_and_handle_exceptions, concpets_list)
 
         # 결과 처리 
         successful_results = [result for result in results if result is not None]
@@ -124,7 +123,7 @@ def expand_one_concept_with_websearch(concept: Concepts):
             #with open('./res/websearch.json', 'w', encoding="utf-8") as f:
             #    f.write(response_body.decode('utf-8'))
         else:
-            print("Error Code:" + rescode)
+            print("[ERROR] Error Code:" + rescode)
 
         #with open('./res/websearch.json', 'r') as f:
         #    jsonraw = f.read()
@@ -171,7 +170,7 @@ def expand_one_concept_with_websearch(concept: Concepts):
                     }
                 )
             except Exception as e:
-                print(f"Error during response parsing for comparison_list: {e}")
+                print(f"[ERROR] during response parsing for comparison_list: {e}")
                 continue
             
         #print('\n\n-------------------------------------------------------------------------------------------------')
@@ -219,7 +218,7 @@ def expand_one_concept_with_websearch(concept: Concepts):
             rtncd, rtnmsg = create_reference_into_tb_references(reference_list)
             #print(f">> 결과 저장\n {rtncd} : {rtnmsg}")
     except Exception as e:
-        print(f"Error during response parsing for expand_concept_with_websearch: {e}")
+        print(f"[ERROR] during response parsing for expand_concept_with_websearch: {e}")
         traceback.print_exc()
         pass
     

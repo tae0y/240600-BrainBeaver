@@ -64,10 +64,10 @@ keyconcept_list = split_file_into_keyconcept(file_list=file_list[:10])
   
 python 폴더로 이동해서 app.py 파일을 실행합니다.  
 표준출력은 로그파일에 저장하고, tqdm 프로그레스바만 표시합니다.  
-wandb를 적용해둬서 app.py만 실행해도 되긴합니다.  
 ```shell
-python app.py > logs/$(date +%Y-%m-%d_%H:%M:%S).log
+python app.py > logs/$(date +%Y%m%d_%H%M%S).log
 ```
+> 멀티 프로세싱을 적용하며 wandb를 비활성화함
   
 동일하게 python 폴더에서 streamlit을 실행합니다.
 ```shell

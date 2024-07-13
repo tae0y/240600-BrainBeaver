@@ -26,9 +26,9 @@ class Constants:
     naver_webkr_url :str
 
     # Ollama constants
-    #ollama_file_thread_count :int
-    #ollama_chunk_thread_count :int
-    ollama_global_thread_pool = None
+    ollama_file_multi_count :int
+    ollama_chunk_multi_count :int
+    #ollama_global_thread_pool = None
 
     @staticmethod
     def get_instance():
@@ -72,6 +72,6 @@ class Constants:
         config = configparser.ConfigParser()
         config.read('./res/config.properties') #app.py가 실행되는 위치 기준으로 설정
 
-        #self.ollama_thread_count = int(config.get('Ollama', 'FILE_THREAD_COUNT'))
-        #self.ollama_looped_thread_count = int(config.get('Ollama', 'CHUNK_THREAD_COUNT'))
-        self.ollama_global_thread_pool = int(config.get('Ollama', 'GLOBAL_THREAD_POOL'))
+        self.ollama_file_multi_count = int(config.get('Ollama', 'FILE_MULTI_COUNT'))
+        self.ollama_chunk_multi_count = int(config.get('Ollama', 'CHUNK_MULTI_COUNT'))
+        #self.ollama_global_thread_pool = int(config.get('Ollama', 'GLOBAL_THREAD_POOL'))

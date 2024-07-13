@@ -10,8 +10,9 @@ from common.constants import Constants
 import wandb
 import threading
 from typing import Tuple
-import threading
-from common.threadpool import get_global_thread_pool
+from common.pooling import get_global_thread_pool, get_global_process_pool
+from functools import partial
+import psutil
 
 CHUNK_SIZE = 1024
 OVERLAP_SIZE = 200
@@ -74,19 +75,11 @@ def query_ollama_with_context(query:str, title:str, context:str, options:dict) -
     context_chunks = chunking_context(context, options['chunk_size'])
     response_list = []
     
-    response_list = []
-    executor = get_global_thread_pool()
-    #with get_global_thread_pool() as executor:
-    future_to_chunk = {executor.submit(process_chunk, chunk, query, title, options, api_url): chunk for chunk in context_chunks}
-    for future in as_completed(future_to_chunk):
-        chunk = future_to_chunk[future]
-        try:
-            result = future.result()
-            if result is not None:
-                #print(result)
-                response_list.append(result)
-        except Exception as e:
-            print(f"Exception for chunk {len(chunk)}: {e}")
+    # Ollama는 멀티 프로세싱으로 처리
+    pool = get_global_process_pool()
+    func = partial(process_chunk, query=query, title=title, options=options, api_url=api_url)
+    results = pool.map(func, context_chunks)
+    response_list.extend(filter(None, results))
 
     #print('> query_ollama_with_context :: '+str(response_list))
     return response_list
@@ -96,17 +89,28 @@ def process_chunk(chunk, query, title, options, api_url):
         return None
 
     data = build_request_data(query, f"{title}\n\n{chunk}", options)
+    
     begin = time.time()
     thread_count_before = threading.active_count()
-    response, thread_count_during = send_post_request(api_url, data)
+    process_count_before = list(psutil.process_iter())
+    
+    response, thread_count_during, process_count_during = send_post_request(api_url, data)
+
     end = time.time()
     thread_count_after = threading.active_count()
-    wandb.log({'chunk_size':len(chunk), 
-               'elapsed_time':end - begin, 
-               'thread_count_before':thread_count_before,
-               'thread_count_during':thread_count_during,
-               'thread_count_after':thread_count_after})
-    print(f"query_ollama_with_context elapsed time (chunk {len(chunk)}) : {end - begin}")
+    process_count_after = list(psutil.process_iter())
+
+    #wandb.log({'chunk_size':len(chunk), 
+    #           'elapsed_time':end - begin, 
+    #           'thread_count_before':thread_count_before,
+    #           'thread_count_during':thread_count_during,
+    #           'thread_count_after':thread_count_after,
+    #           'process_count_before':process_count_before,
+    #            'process_count_during':process_count_during,
+    #            'process_count_after':process_count_after,
+    #           })
+    print(f"[ANALYZE] chunk_size:{len(chunk)}, elapsed_time:{end - begin}, thread_count_before:{thread_count_before}, thread_count_during:{thread_count_during}, thread_count_after:{thread_count_after}, process_count_before:{len(process_count_before)}, process_count_during:{len(process_count_during)}, process_count_after:{len(process_count_after)}")
+
     try:
         if response:
             if options['format'] == 'json':
@@ -118,7 +122,7 @@ def process_chunk(chunk, query, title, options, api_url):
             #print(f"{response.status_code} {'OK' if response.status_code == 200 else 'NG'}\n{ascii_contents}\n\n")
             return ascii_contents
     except Exception as e:
-        print(f"Error during response parsing: {e}")
+        print(f"[ERROR] during response parsing: {e}")
         return None    
 
 """
@@ -143,15 +147,16 @@ def build_request_data(query:str, chunk:str, options:dict):
         data['prompt'] = query
     return data
 
-def send_post_request(api_url:str, data:str) -> Tuple[requests.Response, int]:
+def send_post_request(api_url:str, data:str) -> Tuple[requests.Response, int, int]:
     try:
         response = requests.post(api_url, json=data)
         thread_count_during = threading.active_count()
+        process_count_during = list(psutil.process_iter())
         response.raise_for_status()
-        return response, thread_count_during
+        return response, thread_count_during, process_count_during
     except requests.RequestException as e:
-        print(f"Error during API call: {e}")
-        return None, None
+        print(f"[ERROR] during API call: {e}")
+        return None, None, None
 
 def parse_response(response:str, api_type:str):
     if api_type == 'chat':
@@ -164,7 +169,7 @@ def parse_response(response:str, api_type:str):
 
 def choose_model(query:str, context:str, api_type:str):
     #return 'gemma:latest'
-    return 'gemma2:9b-instruct-q2_K'
+    return 'gemma2:9b-instruct-q5_K_M'
 
 def chunking_context(context:str, chunk_size:int):
     context_chunks = []

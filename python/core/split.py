@@ -2,14 +2,16 @@ from llm.llmroute import query_with_context
 from concurrent.futures import ThreadPoolExecutor
 from common.file import get_plaintext_from_filepath
 from common.constants import Constants
-from common.threadpool import get_global_thread_pool
+from common.pooling import get_global_thread_pool
+import traceback
 
 constants = Constants.get_instance()
 
 def split_file_into_keyconcept(file_list: list) -> list[dict]:
     keyconcept_list = []
+
+    # 파일 처리는 멀티스레딩으로 처리
     executor = get_global_thread_pool()
-    #with get_global_thread_pool() as executor:
     results = executor.map(extract_keyconcept, file_list)
     for result in results:
         keyconcept_list.extend(result)
@@ -53,7 +55,8 @@ def extract_keyconcept(file_path):
         #print('> extract_keyconcept :: '+str(response_list))
 
     except Exception as e:
-        print(f"extract_keyconcept error: file_path - {e}")
+        print(f"[ERROR] extract_keyconcept error: file_path - {e}")
+        traceback.print_exc()
         response_list = []
 
     return response_list
